@@ -61,6 +61,46 @@ import numpy as np
 import sys
 import cvk2
 
+def fixKeyCode(code):
+    return np.uint8(code).view(np.int8)
+
+def labelAndWaitForKey(image, text):
+
+    # Get the image height - the first element of its shape tuple.
+    h = image.shape[0]
+
+    display = image.copy()
+
+
+    text_pos = (16, h-16)                # (x, y) location of text
+    font_face = cv2.FONT_HERSHEY_SIMPLEX # identifier of font to use
+    font_size = 1.0                      # scale factor for text
+    
+    bg_color = (0, 0, 0)       # RGB color for black
+    bg_size = 3                # background is bigger than foreground
+    
+    fg_color = (255, 255, 255) # RGB color for white
+    fg_size = 1                # foreground is smaller than background
+
+    line_style = cv2.LINE_AA   # make nice anti-aliased text
+
+    # Draw background text (outline)
+    cv2.putText(display, text, text_pos,
+                font_face, font_size,
+                bg_color, bg_size, line_style)
+
+    # Draw foreground text (middle)
+    cv2.putText(display, text, text_pos,
+                font_face, font_size,
+                fg_color, fg_size, line_style)
+
+    cv2.imshow('Image', display)
+
+    # We could just call cv2.waitKey() instead of using a while loop
+    # here, however, on some platforms, cv2.waitKey() doesn't let
+    # Ctrl+C interrupt programs. This is a workaround.
+    while fixKeyCode(cv2.waitKey(15)) < 0: pass
+
 def load_in_image_or_video():
 	# This is going to query the user for an input 
 	while True:
@@ -69,11 +109,12 @@ def load_in_image_or_video():
 			# we have an image
 			image_name = raw_input("Enter the filename of the image to manipulate (or 0 for default): ")
 			if image_name == '0':
-				original = cv2.imread('Images/default.png')
+				name = 'Images/default.png'
+				original = cv2.imread(name)
 				break
 			else:
-				image_name = 'Images/' + image_name
-				original = cv2.imread(image_name)
+				name = 'Images/' + image_name
+				original = cv2.imread(name)
 				if original is None:
 					print("There was an error. Please try again.")
 				else: 
@@ -81,16 +122,17 @@ def load_in_image_or_video():
 		elif video_or_image == 1:
 			video_name = raw_input("Enter the filename of the video to manipulate (or 0 for default): ")
 			if video_name == '0':
-				original = cv2.VideoCapture('Videos/default.avi')
+				name = 'Videos/default.avi'
+				original = cv2.VideoCapture(name)
 				break
 			else:
-				video_name = 'Videos/' + video_name	
-				original = cv2.VideoCapture(video_name)
+				name = 'Videos/' + video_name	
+				original = cv2.VideoCapture(name)
 				if not original or not original.isOpened():
 					print("There was an error. Please try again.")
 				else:
 					break #we're
-	return (original, video_or_image)
+	return (original, video_or_image, name)
 
 def display_initial_input(orig, flag):
 	if flag == 0:
@@ -109,6 +151,7 @@ def display_initial_input(orig, flag):
 		w = frame.shape[1]
 		h = frame.shape[0]
 
+		labelAndWaitForKey(frame, 'First Frame')
 		fps = 30
 
 		# One of these combinations should hopefully work on your platform:
@@ -148,10 +191,109 @@ def display_initial_input(orig, flag):
 		    if k % 0x100 == 27:
 		        break
 
+def temporal_averaging_movie(orig, name):
+	orig = cv2.VideoCapture(name)
 
+	ok, frame = orig.read()
+
+	# Now set up a VideoWriter to output video.
+	w, h = frame.shape[1], frame.shape[0]
+
+	labelAndWaitForKey(frame, 'First Frame')
+	fps = 30
+
+	# Loop until movie is ended or user hits ESC:
+	# Let's get our average of the movie
+
+	sum_of_image = np.zeros((w,h,3),dtype='float32')
+	count = 0
+
+	#while 1:
+	for i in range(100):
+		count += 1
+		# Get the frame.
+		ok, frame = orig.read(frame)
+
+		sum_of_image += frame.astype('float32')
+		
+		# Bail if none.
+		if not ok or frame is None:
+			break
+
+		# Throw it up on the screen. Let's not show it 
+		#cv2.imshow('Video', frame)
+
+		# Delay for 5ms and get a key
+		k = cv2.waitKey(5)
+
+		# Check for ESC hit:
+		if k % 0x100 == 27:
+			break
+
+	normalized_scene = sum_of_image / count
+	return normalized_scene.astype('uint8')
+
+def show_movie_with_thresh(back, orig, name):
+	mov = cv2.VideoCapture(name)
+	ok, frame = mov.read()
+	if not ok or frame is None:
+	    print('No frames in video')
+	    sys.exit(1)
+
+	# Now set up a VideoWriter to output video.
+	w = frame.shape[1]
+	h = frame.shape[0]
+
+	labelAndWaitForKey(frame, 'First Frame')
+	fps = 30
+
+	# One of these combinations should hopefully work on your platform:
+	fourcc, ext = (cv2.VideoWriter_fourcc('D', 'I', 'V', 'X'), 'avi')
+	#fourcc, ext = (cv2.VideoWriter_fourcc('M', 'P', '4', 'V'), 'mov')
+
+	filename = 'threshed.'+ext
+
+	writer = cv2.VideoWriter(filename, fourcc, fps, (w, h))
+
+	# Loop until movie is ended or user hits ESC:
+	while 1:
+
+	    # Get the frame.
+	    ok, frame = mov.read(frame)
+
+	    # Bail if none.
+	    if not ok or frame is None:
+	        break
+
+	    t_frame = frame.astype('float32') - back.astype('float32')
+	    t_frame = t_frame.astype('uint8')
+	    to_show = cv2.convertScaleAbs(t_frame)
+
+	    # Write if we have a writer.
+	    if writer:
+	        writer.write(to_show)
+
+	    # Throw it up on the screen.
+	    cv2.imshow('Video', to_show)
+
+	    # Delay for 5ms and get a key
+	    k = cv2.waitKey(5)
+
+	    # Check for ESC hit:
+	    if k % 0x100 == 27:
+	        break
 
 if __name__ == "__main__":
-	(original, video_or_image) = load_in_image_or_video()
-	display_initial_input(original, video_or_image)
+	(original, video_or_image, name) = load_in_image_or_video()
+	ans = raw_input("Would you like to display the image/video? (yes/no): ")
+	if ans.lower() == "yes":
+		display_initial_input(original, video_or_image)
+	if video_or_image == 1:
+		# we have a video, let's get the average for a few frames
+		average_scene = temporal_averaging_movie(original, name)
+		labelAndWaitForKey(average_scene, "100 Frame Average")
+		show_movie_with_thresh(average_scene, original, name)
+
+
 
 
