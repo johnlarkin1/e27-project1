@@ -61,6 +61,9 @@ import numpy as np
 import sys
 import cvk2
 
+USE_TRACKING = False
+USE_DILATION = True
+
 def fixKeyCode(code):
     return np.uint8(code).view(np.int8)
 
@@ -220,9 +223,6 @@ def temporal_averaging_movie(orig, name):
 		if not ok or frame is None:
 			break
 
-		# Throw it up on the screen. Let's not show it 
-		#cv2.imshow('Video', frame)
-
 		# Delay for 5ms and get a key
 		k = cv2.waitKey(5)
 
@@ -234,17 +234,18 @@ def temporal_averaging_movie(orig, name):
 	return normalized_scene.astype('uint8')
 
 def show_movie_with_thresh(back, orig, name):
-	mov = cv2.VideoCapture(name)
-	ok, frame = mov.read()
+
+	all_pts = []
+
+	mov = cv2.VideoCapture(name) # reopen the video
+	ok, frame = mov.read() # check to make sure it's good
 	if not ok or frame is None:
 	    print('No frames in video')
 	    sys.exit(1)
 
 	# Now set up a VideoWriter to output video.
-	w = frame.shape[1]
-	h = frame.shape[0]
+	w, h = frame.shape[1], frame.shape[0]
 
-	labelAndWaitForKey(frame, 'First Frame')
 	fps = 30
 
 	# One of these combinations should hopefully work on your platform:
@@ -255,33 +256,125 @@ def show_movie_with_thresh(back, orig, name):
 
 	writer = cv2.VideoWriter(filename, fourcc, fps, (w, h))
 
+
 	# Loop until movie is ended or user hits ESC:
 	while 1:
 
-	    # Get the frame.
-	    ok, frame = mov.read(frame)
+		# Get the frame.
+		ok, frame = mov.read(frame)
 
-	    # Bail if none.
-	    if not ok or frame is None:
-	        break
+		# Bail if none.
+		if not ok or frame is None:
+		    break
 
-	    t_frame = frame.astype('float32') - back.astype('float32')
-	    t_frame = t_frame.astype('uint8')
-	    to_show = cv2.convertScaleAbs(t_frame)
+		# threshold using the average image that we passed in
+		diff = np.abs(frame.astype(np.float32) - back.astype(np.float32)).astype(np.uint8)
 
-	    # Write if we have a writer.
-	    if writer:
-	        writer.write(to_show)
+		work = diff.copy()
 
-	    # Throw it up on the screen.
-	    cv2.imshow('Video', to_show)
+		gray_image = cv2.cvtColor(work, cv2.COLOR_BGR2GRAY)
+		ret, thresh = cv2.threshold(gray_image, 50, 255, 0)
 
-	    # Delay for 5ms and get a key
-	    k = cv2.waitKey(5)
+		#cv2.imshow('Video', thresh)
 
-	    # Check for ESC hit:
-	    if k % 0x100 == 27:
-	        break
+		# dilate our threshold
+		if USE_DILATION:
+			thresh = dilate(thresh)
+
+		# Create an RGB display image which to show the different regions.
+		display = np.zeros((gray_image.shape[0], gray_image.shape[1], 3), dtype='uint8')
+
+		# Get the list of contours in the image. See OpenCV docs for
+		# information about the arguments.
+		image, contours, hierarchy = cv2.findContours(thresh, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+
+		# The getccolors function from cvk2 supplies a useful list
+		# of different colors to color things in with.
+		ccolors = cvk2.getccolors()
+
+		# Define the color white (used below).
+		white = (255,255,255)
+		mean_locations = []
+		# For each contour in the image
+		for j in range(len(contours)):
+
+		    # Draw the contour as a colored region on the display image.
+		    cv2.drawContours( display, contours, j, ccolors[j % len(ccolors)], -1 )
+
+		    # Compute some statistics about this contour.
+		    info = cvk2.getcontourinfo(contours[j])
+
+		    # Mean location and basis vectors can be useful.
+		    mu = info['mean']
+		    b1 = info['b1']
+		    b2 = info['b2']
+
+		    # Annotate the display image with mean and basis vectors.
+		    cv2.circle( display, cvk2.array2cv_int(mu), 3, white, 1, cv2.LINE_AA )
+		    
+		    cv2.line( display, cvk2.array2cv_int(mu), cvk2.array2cv_int(mu+2*b1),
+		              white, 1, cv2.LINE_AA )
+		    
+		    cv2.line( display, cvk2.array2cv_int(mu), cvk2.array2cv_int(mu+2*b2),
+		              white, 1, cv2.LINE_AA )
+
+		    if USE_TRACKING and len(contours) == 15:
+		    	mean_locations.append((mu[0], mu[1]))
+
+
+
+		#### Let's do our tracking here
+		#print("THIS IS OUR MEAN LOCATION: {}".format(mean_locations))
+		if USE_TRACKING:
+			if len(contours) == 15:
+				all_pts = tracking(all_pts, mean_locations)
+
+		# Write if we have a writer.
+		if writer:
+		    writer.write(diff)
+
+		#cv2.imshow('Video', diff) # Throw it up on the screen.
+		cv2.imshow('Video', display)
+
+		k = cv2.waitKey(5) # Delay for 5ms and get a key
+
+		# Check for ESC hit:
+		if k % 0x100 == 27:
+		    break
+
+	return all_pts
+
+def dilate(image):
+	kernel = np.ones((3,3), np.uint8)
+	return cv2.dilate(image, kernel, iterations = 1)
+
+def tracking(all_pts, new_xy_locations):
+	if len(all_pts) == 0:
+		all_pts.append(new_xy_locations)
+	else:
+
+		correctOrderPts = np.zeros_like(new_xy_locations)
+
+		last_pts_seen = all_pts[len(all_pts)-1]
+		for newIdx, newPoint in enumerate(new_xy_locations):
+			min_distance = np.Inf
+			correctIdx = -1
+
+			for oldIdx, oldPoint in enumerate(last_pts_seen):
+				distance = euc_dis(newPoint, oldPoint)
+				if distance < min_distance:
+					min_distance = distance
+					correctIdx = oldIdx
+
+			correctOrderPts[correctIdx] = newPoint
+
+		all_pts.append(correctOrderPts)
+	return all_pts
+
+def euc_dis(pt1, pt2):
+	print("This is pt1: {}".format(pt1))
+	print("This is pt2: {}".format(pt2))
+	return np.sqrt( (pt1[0]-pt2[0])**2 + (pt1[1] -pt2[1])**2)
 
 if __name__ == "__main__":
 	(original, video_or_image, name) = load_in_image_or_video()
