@@ -68,6 +68,8 @@ NOTE: MAKE SURE TO TURN THESE ON OR OFF IF YOU WANT DILATION / TRACKING
 
 USE_TRACKING = True
 USE_DILATION = True
+USE_OPEN = True
+USE_CLOSE = False
 
 def fixKeyCode(code):
     return np.uint8(code).view(np.int8)
@@ -159,7 +161,6 @@ def display_initial_input(orig, flag):
 		w = frame.shape[1]
 		h = frame.shape[0]
 
-		labelAndWaitForKey(frame, 'First Frame')
 		fps = 30
 
 		# One of these combinations should hopefully work on your platform:
@@ -207,7 +208,6 @@ def temporal_averaging_movie(orig, name):
 	# Now set up a VideoWriter to output video.
 	w, h = frame.shape[1], frame.shape[0]
 
-	labelAndWaitForKey(frame, 'First Frame')
 	fps = 30
 
 	# Loop until movie is ended or user hits ESC:
@@ -285,16 +285,26 @@ def show_movie_with_thresh(back, orig, name):
 		# threshold using the average image that we passed in
 		diff = np.abs(frame.astype(np.float32) - back.astype(np.float32)).astype(np.uint8)
 
+		differenceimage = cv2.imwrite('differenceimage.png',diff)
 		work = diff.copy()
 
 		gray_image = cv2.cvtColor(work, cv2.COLOR_BGR2GRAY)
 		ret, thresh = cv2.threshold(gray_image, 50, 255, 0)
 
-		#cv2.imshow('Video', thresh)
+		# Saving 'screenshot' of our thresholded image
+		thresholdedimage = cv2.imwrite('thresholdedimage.png', thresh)
+	
 
-		# dilate our threshold
+		# Use various morphological operators on the image if you wish
 		if USE_DILATION:
 			thresh = dilate(thresh)
+		if USE_OPEN:
+			thresh = morph_open(thresh)
+		if USE_CLOSE:
+			thresh = morph.close(thresh)
+
+		# Saving 'screenshot' or our image after morphological operators
+		morphedimage = cv2.imwrite('morphedimage.png', thresh)
 
 		# Create an RGB display image which to show the different regions.
 		display = np.zeros((gray_image.shape[0], gray_image.shape[1], 3), dtype='uint8')
@@ -339,7 +349,6 @@ def show_movie_with_thresh(back, orig, name):
 
 
 		#### Let's do our tracking here
-		#print("THIS IS OUR MEAN LOCATION: {}".format(mean_locations))
 		if USE_TRACKING:
 			if len(contours) == 15:
 				mean_locations = np.array(mean_locations)
@@ -373,6 +382,14 @@ def dilate(image):
 	kernel = np.ones((3,3), np.uint8)
 	return cv2.dilate(image, kernel, iterations = 1)
 
+def morph_open(image):
+	kernel = np.ones((3,3), np.uint8)
+	return cv2.morphologyEx(image, cv2.MORPH_OPEN, kernel)
+
+def morph_close(image):
+	kernel = np.ones((3,3),np.uint8)
+	return cv2.morphologyEx(image, cv2,MORPH_CLOSE, kernel)
+
 def tracking(all_pts, new_xy_locations):
 	if len(all_pts) == 0:
 		all_pts.append(new_xy_locations)
@@ -397,8 +414,6 @@ def tracking(all_pts, new_xy_locations):
 	return all_pts
 
 def euc_dis(pt1, pt2):
-	#print("This is pt1: {}".format(pt1))
-	#print("This is pt2: {}".format(pt2))
 	return np.sqrt( (pt1[0]-pt2[0])**2 + (pt1[1] -pt2[1])**2)
 
 def update_plot(figure, xline, yline, frameCnt, newXdata, newYdata):
@@ -447,6 +462,7 @@ if __name__ == "__main__":
 		plt.show(block=False)	
 
 		print("THIS IS ALL POINTS: {}".format(all_pts))
+
 
 
 
