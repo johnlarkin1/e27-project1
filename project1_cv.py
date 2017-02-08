@@ -60,8 +60,13 @@ import cv2
 import numpy as np
 import sys
 import cvk2
+import matplotlib.pyplot as plt
 
-USE_TRACKING = False
+'''
+NOTE: MAKE SURE TO TURN THESE ON OR OFF IF YOU WANT DILATION / TRACKING
+'''
+
+USE_TRACKING = True
 USE_DILATION = True
 
 def fixKeyCode(code):
@@ -256,8 +261,18 @@ def show_movie_with_thresh(back, orig, name):
 
 	writer = cv2.VideoWriter(filename, fourcc, fps, (w, h))
 
+	if USE_TRACKING:
+		# Let's track our flies with matplotlib
+		plt.ion()
+
+		figure = plt.figure()
+		ax1 = figure.add_subplot(211)
+		ax2 = figure.add_subplot(212)
+		xline, = ax1.plot([], [], 'r') # for the x information
+		yline, = ax2.plot([], [], 'b') # for the y information
 
 	# Loop until movie is ended or user hits ESC:
+	frameCnt = np.zeros(15)
 	while 1:
 
 		# Get the frame.
@@ -327,6 +342,7 @@ def show_movie_with_thresh(back, orig, name):
 		#print("THIS IS OUR MEAN LOCATION: {}".format(mean_locations))
 		if USE_TRACKING:
 			if len(contours) == 15:
+				mean_locations = np.array(mean_locations)
 				all_pts = tracking(all_pts, mean_locations)
 
 		# Write if we have a writer.
@@ -341,6 +357,15 @@ def show_movie_with_thresh(back, orig, name):
 		# Check for ESC hit:
 		if k % 0x100 == 27:
 		    break
+
+		# let's show our image tracking
+		if USE_TRACKING:
+			frameCnt += 1
+			xdata = all_pts[len(all_pts)-1][:,0]
+			ydata = all_pts[len(all_pts)-1][:,1]
+			#print("This is our xdata: {}".format(xdata))
+			#print("This is our ydata: {}".format(ydata))
+			update_plot(figure, xline, yline, frameCnt, xdata, ydata)
 
 	return all_pts
 
@@ -372,9 +397,24 @@ def tracking(all_pts, new_xy_locations):
 	return all_pts
 
 def euc_dis(pt1, pt2):
-	print("This is pt1: {}".format(pt1))
-	print("This is pt2: {}".format(pt2))
+	#print("This is pt1: {}".format(pt1))
+	#print("This is pt2: {}".format(pt2))
 	return np.sqrt( (pt1[0]-pt2[0])**2 + (pt1[1] -pt2[1])**2)
+
+def update_plot(figure, xline, yline, frameCnt, newXdata, newYdata):
+	print("frameCnt: {}".format(frameCnt))
+	print("xdata: {}".format(newXdata))
+	print("ydata: {}".format(newYdata))
+
+	xline.set_xdata(np.append(xline.get_xdata(), frameCnt))
+	xline.set_ydata(np.append(xline.get_ydata(), newXdata))
+
+
+	#xline.set_ydata(np.append(xline.get_ydata(), newXdata))
+	#yline.set_ydata(np.append(yline.get_ydata(), newYdata))
+	figure.canvas.draw()
+	figure.canvas.flush_events()
+	plt.pause(0.01)
 
 if __name__ == "__main__":
 	(original, video_or_image, name) = load_in_image_or_video()
@@ -385,7 +425,7 @@ if __name__ == "__main__":
 		# we have a video, let's get the average for a few frames
 		average_scene = temporal_averaging_movie(original, name)
 		labelAndWaitForKey(average_scene, "100 Frame Average")
-		show_movie_with_thresh(average_scene, original, name)
+		all_pts = show_movie_with_thresh(average_scene, original, name)
 
 
 
