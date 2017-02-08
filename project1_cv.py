@@ -215,7 +215,7 @@ def temporal_averaging_movie(orig, name):
 	# Loop until movie is ended or user hits ESC:
 	# Let's get our average of the movie
 
-	sum_of_image = np.zeros((w,h,3),dtype='float32')
+	sum_of_image = np.zeros((w,h,3), dtype='float32')
 	count = 0
 
 	#while 1:
@@ -280,6 +280,7 @@ def show_movie_with_thresh(back, orig, name):
 
 	# Loop until movie is ended or user hits ESC:
 	frameCnt = np.zeros(15)
+
 	while True:
 
 		# Get the frame.
@@ -394,7 +395,7 @@ def morph_open(image):
 
 def morph_close(image):
 	kernel = np.ones((3,3),np.uint8)
-	return cv2.morphologyEx(image, cv2,MORPH_CLOSE, kernel)
+	return cv2.morphologyEx(image, cv2.MORPH_CLOSE, kernel)
 
 def tracking(all_pts, new_xy_locations):
 	if len(all_pts) == 0:
@@ -405,12 +406,13 @@ def tracking(all_pts, new_xy_locations):
 
 		last_pts_seen = all_pts[len(all_pts)-1]
 
+		indicesSeen = set()
+
 		for newIdx, newPoint in enumerate(new_xy_locations):
 			min_distance = np.Inf
 			correctIdx = -1
 
 			# need to account for the flies that we have already tagged
-			indicesSeen = set()
 
 			for oldIdx, oldPoint in enumerate(last_pts_seen):
 				distance = euc_dis(newPoint, oldPoint)
@@ -448,7 +450,7 @@ if __name__ == "__main__":
 		all_pts = show_movie_with_thresh(average_scene, original, name)
 		all_pts = np.array(all_pts)
 		
-		plt.figure("Test")
+		# plt.figure("Test")
 		plt.ion()
 		plt.subplot(2,1,1)
 		plt.title("Tracking of Fly Locations by X and Y")
