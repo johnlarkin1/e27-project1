@@ -430,6 +430,12 @@ if __name__ == "__main__":
 		
 		plt.figure("Test")
 		plt.ion()
+		plt.subplot(2,1,1)
+		plt.title("Tracking of Fly Locations by X and Y")
+		plt.ylabel("X Position (pixel coords)")
+		plt.subplot(2,1,2)
+		plt.ylabel("Y Position (pixel coords)")
+		plt.xlabel("Frame Iteration")
 		for i in range(len(all_pts)):
 			print(i)
 			plt.subplot(2,1,1)
