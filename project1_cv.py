@@ -273,7 +273,7 @@ def show_movie_with_thresh(back, orig, name):
 
 	# Loop until movie is ended or user hits ESC:
 	frameCnt = np.zeros(15)
-	while 1:
+	for nm in range(50):
 
 		# Get the frame.
 		ok, frame = mov.read(frame)
@@ -402,9 +402,9 @@ def euc_dis(pt1, pt2):
 	return np.sqrt( (pt1[0]-pt2[0])**2 + (pt1[1] -pt2[1])**2)
 
 def update_plot(figure, xline, yline, frameCnt, newXdata, newYdata):
-	print("frameCnt: {}".format(frameCnt))
-	print("xdata: {}".format(newXdata))
-	print("ydata: {}".format(newYdata))
+	#print("frameCnt: {}".format(frameCnt))
+	#print("xdata: {}".format(newXdata))
+	#print("ydata: {}".format(newYdata))
 
 	xline.set_xdata(np.append(xline.get_xdata(), frameCnt))
 	xline.set_ydata(np.append(xline.get_ydata(), newXdata))
@@ -426,7 +426,21 @@ if __name__ == "__main__":
 		average_scene = temporal_averaging_movie(original, name)
 		labelAndWaitForKey(average_scene, "100 Frame Average")
 		all_pts = show_movie_with_thresh(average_scene, original, name)
+		all_pts = np.array(all_pts)
+		
+		plt.figure("Test")
+		plt.ion()
+		for i in range(len(all_pts)):
+			print(i)
+			plt.subplot(2,1,1)
+			plt.plot([i]*15, all_pts[i,:,0],'ro')
+			plt.subplot(2,1,2)
+			plt.plot([i]*15, all_pts[i,:,1],'bo')
+			plt.show(block=False)	
+			plt.pause(0.10)
+		plt.show(block=False)	
 
+		print("THIS IS ALL POINTS: {}".format(all_pts))
 
 
 
