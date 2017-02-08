@@ -63,13 +63,15 @@ import cvk2
 import matplotlib.pyplot as plt
 
 '''
-NOTE: MAKE SURE TO TURN THESE ON OR OFF IF YOU WANT DILATION / TRACKING
+NOTE: MAKE SURE TO TURN THESE ON OR OFF IF YOU WANT TO CONTROL THE 
+	  VARIOUS PARAMETERS (e.g. live tracking, dilation, open, close)
 '''
 
 USE_TRACKING = True
 USE_DILATION = True
 USE_OPEN = True
 USE_CLOSE = False
+USE_LIVE_TRACKING = False
 
 def fixKeyCode(code):
     return np.uint8(code).view(np.int8)
@@ -264,16 +266,21 @@ def show_movie_with_thresh(back, orig, name):
 	if USE_TRACKING:
 		# Let's track our flies with matplotlib
 		plt.ion()
-
-		figure = plt.figure()
-		ax1 = figure.add_subplot(211)
-		ax2 = figure.add_subplot(212)
-		xline, = ax1.plot([], [], 'r') # for the x information
-		yline, = ax2.plot([], [], 'b') # for the y information
+		figure = plt.figure("Test")
+		#ax1 = figure.add_subplot(211)
+		#ax2 = figure.add_subplot(212)
+		plt.subplot(2,1,1)
+		plt.title("Tracking of Fly Locations by X and Y")
+		plt.ylabel("X Position (pixel coords)")
+		plt.subplot(2,1,2)
+		plt.ylabel("Y Position (pixel coords)")
+		plt.xlabel("Frame Iteration")
+		#xline, = ax1.plot([], [], 'r') # for the x information
+		#yline, = ax2.plot([], [], 'b') # for the y information
 
 	# Loop until movie is ended or user hits ESC:
 	frameCnt = np.zeros(15)
-	for nm in range(50):
+	while True:
 
 		# Get the frame.
 		ok, frame = mov.read(frame)
@@ -370,11 +377,10 @@ def show_movie_with_thresh(back, orig, name):
 		# let's show our image tracking
 		if USE_TRACKING:
 			frameCnt += 1
-			xdata = all_pts[len(all_pts)-1][:,0]
-			ydata = all_pts[len(all_pts)-1][:,1]
-			#print("This is our xdata: {}".format(xdata))
-			#print("This is our ydata: {}".format(ydata))
-			update_plot(figure, xline, yline, frameCnt, xdata, ydata)
+			if USE_LIVE_TRACKING:
+				xdata = all_pts[len(all_pts)-1][:,0]
+				ydata = all_pts[len(all_pts)-1][:,1]
+				update_plot(figure, frameCnt, xdata, ydata)
 
 	return all_pts
 
@@ -398,16 +404,23 @@ def tracking(all_pts, new_xy_locations):
 		correctOrderPts = np.zeros_like(new_xy_locations)
 
 		last_pts_seen = all_pts[len(all_pts)-1]
+
 		for newIdx, newPoint in enumerate(new_xy_locations):
 			min_distance = np.Inf
 			correctIdx = -1
 
+			# need to account for the flies that we have already tagged
+			indicesSeen = set()
+
 			for oldIdx, oldPoint in enumerate(last_pts_seen):
 				distance = euc_dis(newPoint, oldPoint)
-				if distance < min_distance:
+
+				# ignoring the things we've already tagged bc of oldIdx not in indicesSeen
+				if distance < min_distance and oldIdx not in indicesSeen:
 					min_distance = distance
 					correctIdx = oldIdx
 
+			indicesSeen.add(correctIdx)
 			correctOrderPts[correctIdx] = newPoint
 
 		all_pts.append(correctOrderPts)
@@ -416,20 +429,12 @@ def tracking(all_pts, new_xy_locations):
 def euc_dis(pt1, pt2):
 	return np.sqrt( (pt1[0]-pt2[0])**2 + (pt1[1] -pt2[1])**2)
 
-def update_plot(figure, xline, yline, frameCnt, newXdata, newYdata):
-	#print("frameCnt: {}".format(frameCnt))
-	#print("xdata: {}".format(newXdata))
-	#print("ydata: {}".format(newYdata))
-
-	xline.set_xdata(np.append(xline.get_xdata(), frameCnt))
-	xline.set_ydata(np.append(xline.get_ydata(), newXdata))
-
-
-	#xline.set_ydata(np.append(xline.get_ydata(), newXdata))
-	#yline.set_ydata(np.append(yline.get_ydata(), newYdata))
-	figure.canvas.draw()
-	figure.canvas.flush_events()
-	plt.pause(0.01)
+def update_plot(figure, frameCnt, newXdata, newYdata):
+	plt.subplot(2,1,1)
+	plt.plot([frameCnt]*15, newXdata,'ro')
+	plt.subplot(2,1,2)
+	plt.plot([frameCnt]*15, newYdata,'bo')
+	plt.show(block=False)
 
 if __name__ == "__main__":
 	(original, video_or_image, name) = load_in_image_or_video()
@@ -452,7 +457,6 @@ if __name__ == "__main__":
 		plt.ylabel("Y Position (pixel coords)")
 		plt.xlabel("Frame Iteration")
 		for i in range(len(all_pts)):
-			print(i)
 			plt.subplot(2,1,1)
 			plt.plot([i]*15, all_pts[i,:,0],'ro')
 			plt.subplot(2,1,2)
@@ -461,7 +465,7 @@ if __name__ == "__main__":
 			plt.pause(0.10)
 		plt.show(block=False)	
 
-		print("THIS IS ALL POINTS: {}".format(all_pts))
+		#print("THIS IS ALL POINTS: {}".format(all_pts))
 
 
 
