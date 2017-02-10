@@ -264,19 +264,18 @@ def show_movie_with_thresh(back, orig, name):
 	writer = cv2.VideoWriter(filename, fourcc, fps, (w, h))
 
 	if USE_TRACKING:
+		
 		# Let's track our flies with matplotlib
 		plt.ion()
 		figure = plt.figure("Test")
-		#ax1 = figure.add_subplot(211)
-		#ax2 = figure.add_subplot(212)
+		
 		plt.subplot(2,1,1)
 		plt.title("Tracking of Fly Locations by X and Y")
 		plt.ylabel("X Position (pixel coords)")
 		plt.subplot(2,1,2)
 		plt.ylabel("Y Position (pixel coords)")
 		plt.xlabel("Frame Iteration")
-		#xline, = ax1.plot([], [], 'r') # for the x information
-		#yline, = ax2.plot([], [], 'b') # for the y information
+		
 
 	# Loop until movie is ended or user hits ESC:
 	frameCnt = np.zeros(15)
@@ -366,7 +365,7 @@ def show_movie_with_thresh(back, orig, name):
 		if writer:
 		    writer.write(diff)
 
-		#cv2.imshow('Video', diff) # Throw it up on the screen.
+		# Throw it up on the screen.
 		cv2.imshow('Video', display)
 
 		k = cv2.waitKey(5) # Delay for 5ms and get a key
@@ -444,13 +443,15 @@ if __name__ == "__main__":
 	if ans.lower() == "yes":
 		display_initial_input(original, video_or_image)
 	if video_or_image == 1:
+		
+		
 		# we have a video, let's get the average for a few frames
 		average_scene = temporal_averaging_movie(original, name)
 		labelAndWaitForKey(average_scene, "100 Frame Average")
 		all_pts = show_movie_with_thresh(average_scene, original, name)
 		all_pts = np.array(all_pts)
 		
-		# plt.figure("Test")
+		# Let's plot our data
 		plt.ion()
 		plt.subplot(2,1,1)
 		plt.title("Tracking of Fly Locations by X and Y")
@@ -458,6 +459,7 @@ if __name__ == "__main__":
 		plt.subplot(2,1,2)
 		plt.ylabel("Y Position (pixel coords)")
 		plt.xlabel("Frame Iteration")
+
 		for i in range(len(all_pts)):
 			plt.subplot(2,1,1)
 			plt.plot([i]*15, all_pts[i,:,0],'ro')
@@ -466,9 +468,5 @@ if __name__ == "__main__":
 			plt.show(block=False)	
 			plt.pause(0.10)
 		plt.show(block=False)	
-
-		#print("THIS IS ALL POINTS: {}".format(all_pts))
-
-
 
 
