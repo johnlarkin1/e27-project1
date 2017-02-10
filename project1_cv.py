@@ -215,7 +215,7 @@ def temporal_averaging_movie(orig, name):
 	# Loop until movie is ended or user hits ESC:
 	# Let's get our average of the movie
 
-	sum_of_image = np.zeros((w,h,3),dtype='float32')
+	sum_of_image = np.zeros((w,h,3), dtype='float32')
 	count = 0
 
 	#while 1:
@@ -264,11 +264,11 @@ def show_movie_with_thresh(back, orig, name):
 	writer = cv2.VideoWriter(filename, fourcc, fps, (w, h))
 
 	if USE_TRACKING and USE_LIVE_TRACKING:
+		
 		# Let's track our flies with matplotlib
 		plt.ion()
 		figure = plt.figure("Test")
-		#ax1 = figure.add_subplot(211)
-		#ax2 = figure.add_subplot(212)
+		
 		plt.subplot(2,1,1)
 		plt.title("Tracking of Fly Locations by X and Y")
 		plt.ylabel("X Position (pixel coords)")
@@ -278,6 +278,7 @@ def show_movie_with_thresh(back, orig, name):
 
 	# Loop until movie is ended or user hits ESC:
 	frameCnt = np.zeros(15)
+
 	while True:
 
 		# Get the frame.
@@ -363,7 +364,7 @@ def show_movie_with_thresh(back, orig, name):
 		if writer:
 		    writer.write(diff)
 
-		#cv2.imshow('Video', diff) # Throw it up on the screen.
+		# Throw it up on the screen.
 		cv2.imshow('Video', display)
 
 		k = cv2.waitKey(5) # Delay for 5ms and get a key
@@ -392,7 +393,7 @@ def morph_open(image):
 
 def morph_close(image):
 	kernel = np.ones((3,3),np.uint8)
-	return cv2.morphologyEx(image, cv2,MORPH_CLOSE, kernel)
+	return cv2.morphologyEx(image, cv2.MORPH_CLOSE, kernel)
 
 def tracking(all_pts, new_xy_locations):
 	if len(all_pts) == 0:
@@ -403,12 +404,13 @@ def tracking(all_pts, new_xy_locations):
 
 		last_pts_seen = all_pts[len(all_pts)-1]
 
+		indicesSeen = set()
+
 		for newIdx, newPoint in enumerate(new_xy_locations):
 			min_distance = np.Inf
 			correctIdx = -1
 
 			# need to account for the flies that we have already tagged
-			indicesSeen = set()
 
 			for oldIdx, oldPoint in enumerate(last_pts_seen):
 				distance = euc_dis(newPoint, oldPoint)
@@ -440,13 +442,15 @@ if __name__ == "__main__":
 	if ans.lower() == "yes":
 		display_initial_input(original, video_or_image)
 	if video_or_image == 1:
+		
+		
 		# we have a video, let's get the average for a few frames
 		average_scene = temporal_averaging_movie(original, name)
 		labelAndWaitForKey(average_scene, "100 Frame Average")
 		all_pts = show_movie_with_thresh(average_scene, original, name)
 		all_pts = np.array(all_pts)
 		
-		plt.figure("Test")
+		# Let's plot our data
 		plt.ion()
 		plt.subplot(2,1,1)
 		plt.title("Tracking of Fly Locations by X and Y")
@@ -454,6 +458,7 @@ if __name__ == "__main__":
 		plt.subplot(2,1,2)
 		plt.ylabel("Y Position (pixel coords)")
 		plt.xlabel("Frame Iteration")
+
 		for i in range(len(all_pts)):
 			plt.subplot(2,1,1)
 			plt.plot([i]*15, all_pts[i,:,0],'ro')
@@ -462,9 +467,5 @@ if __name__ == "__main__":
 			plt.show(block=False)	
 			plt.pause(0.10)
 		plt.show(block=False)	
-
-		#print("THIS IS ALL POINTS: {}".format(all_pts))
-
-
 
 
