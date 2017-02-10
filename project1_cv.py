@@ -263,7 +263,7 @@ def show_movie_with_thresh(back, orig, name):
 
 	writer = cv2.VideoWriter(filename, fourcc, fps, (w, h))
 
-	if USE_TRACKING:
+	if USE_TRACKING and USE_LIVE_TRACKING:
 		# Let's track our flies with matplotlib
 		plt.ion()
 		figure = plt.figure("Test")
@@ -275,8 +275,6 @@ def show_movie_with_thresh(back, orig, name):
 		plt.subplot(2,1,2)
 		plt.ylabel("Y Position (pixel coords)")
 		plt.xlabel("Frame Iteration")
-		#xline, = ax1.plot([], [], 'r') # for the x information
-		#yline, = ax2.plot([], [], 'b') # for the y information
 
 	# Loop until movie is ended or user hits ESC:
 	frameCnt = np.zeros(15)
